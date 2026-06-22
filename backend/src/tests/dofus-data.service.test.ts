@@ -1,4 +1,6 @@
 import { resolve } from 'node:path';
+import { EventEmitter } from 'node:events';
+import https from 'node:https';
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 import { prisma } from '../database/prisma.js';
 import { DofusDataRepository } from '../modules/dofus-data/dofus-data.repository.js';
@@ -191,25 +193,21 @@ describe('DofusDataService', () => {
   });
 
   it('fails cleanly when DofusBook is unavailable', async () => {
-    vi.stubGlobal(
-      'fetch',
-      vi.fn(async () => new Response('unavailable', { status: 503 })),
-    );
+    mockHttpsResponses([{ statusCode: 503, body: 'unavailable' }]);
 
     await expect(
       service.importEquipmentFromUrl({ url: 'https://example.test/equipment' }),
     ).rejects.toMatchObject({
-      code: 'DOFUSBOOK_UNAVAILABLE',
+      code: 'DOFUSBOOK_HTTP_503',
       statusCode: 502,
     });
   });
 
   it('imports DofusBook equipment from paginated HTTP payloads', async () => {
-    const fetchMock = vi
-      .fn()
-      .mockResolvedValueOnce(
-        new Response(
-          JSON.stringify({
+    const httpsMock = mockHttpsResponses([
+      {
+        statusCode: 200,
+        body: JSON.stringify({
             data: [
               {
                 id: 2001,
@@ -232,13 +230,11 @@ describe('DofusDataService', () => {
                 ingredients: [],
               },
             ],
-          }),
-          { status: 200, headers: { 'Content-Type': 'application/json' } },
-        ),
-      )
-      .mockResolvedValueOnce(
-        new Response(
-          JSON.stringify({
+        }),
+      },
+      {
+        statusCode: 200,
+        body: JSON.stringify({
             data: [
               {
                 id: 2003,
@@ -251,17 +247,41 @@ describe('DofusDataService', () => {
                 ingredients: [],
               },
             ],
-          }),
-          { status: 200, headers: { 'Content-Type': 'application/json' } },
-        ),
-      );
-    vi.stubGlobal('fetch', fetchMock);
+        }),
+      },
+    ]);
 
     const summary = await service.importEquipmentFromUrl({
       url: 'https://example.test/equipment?page=1',
     });
 
     expect(summary.imported).toBe(3);
-    expect(fetchMock).toHaveBeenCalledTimes(2);
+    expect(httpsMock).toHaveBeenCalledTimes(2);
   });
 });
+
+function mockHttpsResponses(responses: Array<{ statusCode: number; body: string }>) {
+  return vi.spyOn(https, 'get').mockImplementation((_url, _options, callback) => {
+    const responseData = responses.shift();
+    const response = new EventEmitter() as EventEmitter & {
+      statusCode: number;
+      setEncoding: (encoding: string) => void;
+    };
+    response.statusCode = responseData?.statusCode ?? 500;
+    response.setEncoding = vi.fn();
+    const request = new EventEmitter() as EventEmitter & {
+      setTimeout: (timeout: number, callback?: () => void) => void;
+      destroy: (error?: Error) => void;
+    };
+    request.setTimeout = vi.fn();
+    request.destroy = vi.fn();
+
+    queueMicrotask(() => {
+      callback?.(response as never);
+      response.emit('data', responseData?.body ?? '');
+      response.emit('end');
+    });
+
+    return request as never;
+  });
+}

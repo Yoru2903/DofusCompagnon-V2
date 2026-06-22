@@ -104,15 +104,41 @@ Aucune confusion ne doit être faite entre ce flux et le workflow d'import struc
 
 ---
 
-# 7. Risque technique — Disponibilité de l'API DofusBook
+# 7. Contrainte technique — Transport HTTP pour l'API DofusBook (arbitrée au Lot 2 correctif)
 
-L'API DofusBook ne présente actuellement aucune protection anti-bot identifiée et est consommée par appel HTTP direct avec pagination automatique. Ce point reste un risque de rupture (changement de l'API, blocage IP, évolution des conditions d'usage).
+L'API DofusBook est protégée par Cloudflare, qui bloque systématiquement les requêtes émises via `fetch` (transport Undici de Node.js), même avec des headers identiques. La solution validée en production sur la V1 du projet et confirmée par diagnostic est l'utilisation de `node:https.get` (module natif Node.js).
 
-## Règles de conception obligatoires pour Codex
+## Règles de transport obligatoires pour Codex
 
-1. Le module d'import doit échouer proprement (logs, statut d'erreur explicite) sans jamais bloquer le reste de l'application si la source devient inaccessible.
-2. Le format de contrat d'import (§3/§4) doit rester **découplé du mécanisme de récupération HTTP** : si une protection venait à apparaître, la bascule vers un import manuel par fichier (CSV/JSON) doit être possible sans changement du modèle de données ni du service de mapping — seule l'étape de récupération brute change.
-3. La récupération brute (script de pagination HTTP) reste hors périmètre des règles métier Codex ; elle est gérée côté produit/porteur de projet, pas par les services métier eux-mêmes.
+**Transport** : `node:https.get` exclusivement. `fetch` et toute bibliothèque reposant sur Undici (axios par défaut en environnement Node récent, `node-fetch` v3+) sont **interdits** pour les appels vers `touch.dofusbook.net` — ils retournent systématiquement HTTP 403.
+
+**Headers obligatoires** (validés en production) :
+
+```text
+User-Agent    : Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36
+                (KHTML, like Gecko) Chrome/136.0.0.0 Safari/537.36 DofusCompagnon/0.1
+Accept        : application/json, text/plain, */*
+Accept-Language : fr-FR,fr;q=0.9
+Referer       : https://touch.dofusbook.net/
+```
+
+**Pagination** : paramètre `page` incrémenté depuis 1, arrêt sur page vide ou page partielle. Garde-fou à 500 pages maximum.
+
+**Temporisation** : 500 ms entre chaque page (délai obligatoire, respectueux de la source).
+
+**Timeout** : 20 secondes par requête.
+
+**Redirections** : ne pas suivre automatiquement.
+
+**Cookies/session** : aucun — l'API ne nécessite ni cookie ni session.
+
+**Format de réponse attendu** : tableau JSON direct, ou objet avec clé `data`, `items`, ou `items.data` — le parser doit tester ces formes dans l'ordre.
+
+**En cas de statut non-2xx** : lever une erreur typée (ex: `DOFUSBOOK_HTTP_<status>`), créer un `import_batches` en statut `failed` avec le statut HTTP dans `report_data`, ne pas lancer l'import métier, ne pas écrire en base.
+
+## Alternative CSV (si l'API devient durablement inaccessible)
+
+Des gabarits CSV sont disponibles dans `docs/csv-templates/` (`dofusbook-items.csv`, `dofusbook-effects.csv`) pour une collecte manuelle alternative. Le workflow métier d'import doit rester compatible avec ces gabarits sans modification du modèle de données.
 
 ---
 

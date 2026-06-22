@@ -1,4 +1,5 @@
 import { readFile } from 'node:fs/promises';
+import https from 'node:https';
 import type { Prisma, PrismaClient } from '@prisma/client';
 import { ApiError } from '../../shared/errors/api-error.js';
 import { normalizeSearchText } from '../../shared/utils/normalize.js';
@@ -29,6 +30,16 @@ import {
 import type { DofusDataRepository } from './dofus-data.repository.js';
 
 const manualStatuses = new Set<VerificationStatus>(['verified', 'corrected']);
+const dofusBookHeaders = {
+  'User-Agent':
+    'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/136.0.0.0 Safari/537.36 DofusCompagnon/0.1',
+  Accept: 'application/json, text/plain, */*',
+  'Accept-Language': 'fr-FR,fr;q=0.9',
+  Referer: 'https://touch.dofusbook.net/',
+};
+const dofusBookRequestTimeoutMs = 20_000;
+const dofusBookPageDelayMs = 500;
+const dofusBookMaxPages = 500;
 
 type SourceProfile = {
   verificationStatus: VerificationStatus;
@@ -337,6 +348,12 @@ export class DofusDataService {
     const summary = createEquipmentSummary();
 
     while (true) {
+      if ((summary.pagesFetched ?? 0) >= dofusBookMaxPages) {
+        throw new ApiError(502, 'DOFUSBOOK_MAX_PAGES', 'Limite de pagination DofusBook atteinte.', {
+          maxPages: dofusBookMaxPages,
+        });
+      }
+
       const pageUrl = setPageInUrl(initialUrl, page);
       const pageItems = await this.fetchDofusBookEquipmentPage(pageUrl);
       summary.pagesFetched = (summary.pagesFetched ?? 0) + 1;
@@ -357,24 +374,26 @@ export class DofusDataService {
       }
 
       page += 1;
+      await delay(dofusBookPageDelayMs);
     }
 
     return summary;
   }
 
   private async fetchDofusBookEquipmentPage(pageUrl: string) {
-    const response = await fetch(pageUrl);
+    const response = await httpsGetJson(pageUrl);
 
-    if (!response.ok) {
+    if (response.statusCode < 200 || response.statusCode >= 300) {
+      await this.createFailedDofusBookBatch(pageUrl, response.statusCode, response.body);
       throw new ApiError(
         502,
-        'DOFUSBOOK_UNAVAILABLE',
+        `DOFUSBOOK_HTTP_${response.statusCode}`,
         'La source DofusBook est indisponible.',
-        { status: response.status },
+        { status: response.statusCode },
       );
     }
 
-    const payload = (await response.json()) as unknown;
+    const payload = parseJsonResponse(response.body);
     const pageItems = extractDofusBookItems(payload);
 
     if (!pageItems) {
@@ -382,6 +401,30 @@ export class DofusDataService {
     }
 
     return pageItems;
+  }
+
+  private async createFailedDofusBookBatch(pageUrl: string, statusCode: number, body: string) {
+    await this.db.$transaction(async (tx) => {
+      const source = await this.ensureSource(tx, {
+        name: 'DofusBook Touch (API)',
+        url: 'https://touch.dofusbook.net/api/items/touch/search/equipment',
+        sourceType: 'api',
+        reliabilityLevel: 'medium',
+      });
+
+      await tx.importBatch.create({
+        data: {
+          sourceId: source.id,
+          status: 'failed',
+          rawFileName: pageUrl,
+          notes: 'Echec HTTP pendant la recuperation DofusBook Touch.',
+          reportData: {
+            statusCode,
+            bodyPreview: body.slice(0, 500),
+          },
+        },
+      });
+    });
   }
 
   async importEquipments(
@@ -510,7 +553,7 @@ export class DofusDataService {
           });
           await tx.recipeIngredient.deleteMany({ where: { recipeId: recipe.id } });
 
-          for (const ingredient of equipment.ingredients) {
+          for (const ingredient of mergeDuplicateIngredients(equipment.ingredients)) {
             const resource = await this.ensureDerivedResource(tx, ingredient, source.id);
             if (resource.created) {
               summary.resourcesCreated += 1;
@@ -591,7 +634,7 @@ export class DofusDataService {
     ingredient: DofusBookEquipmentInput['ingredients'][number],
     sourceId: string,
   ) {
-    const externalId = `dofusbook:${ingredient.item_id}`;
+    const externalId = `dofusbook-resource:${normalizeSearchText(ingredient.name)}`;
     const existing = await tx.item.findUnique({ where: { externalId } });
 
     if (existing) {
@@ -656,7 +699,11 @@ function extractDofusBookItems(payload: unknown): unknown[] | null {
   }
 
   if (payload && typeof payload === 'object') {
-    const candidate = payload as { data?: unknown; items?: unknown; results?: unknown };
+    const candidate = payload as {
+      data?: unknown;
+      items?: unknown;
+      results?: unknown;
+    };
 
     if (Array.isArray(candidate.data)) {
       return candidate.data;
@@ -664,6 +711,14 @@ function extractDofusBookItems(payload: unknown): unknown[] | null {
 
     if (Array.isArray(candidate.items)) {
       return candidate.items;
+    }
+
+    if (
+      candidate.items &&
+      typeof candidate.items === 'object' &&
+      Array.isArray((candidate.items as { data?: unknown }).data)
+    ) {
+      return (candidate.items as { data: unknown[] }).data;
     }
 
     if (Array.isArray(candidate.results)) {
@@ -719,4 +774,63 @@ function extractExternalRef(rawValue: unknown) {
 
 function toInputJson(rawValue: unknown): Prisma.InputJsonValue {
   return JSON.parse(JSON.stringify(rawValue ?? null)) as Prisma.InputJsonValue;
+}
+
+function mergeDuplicateIngredients(
+  ingredients: DofusBookEquipmentInput['ingredients'],
+): DofusBookEquipmentInput['ingredients'] {
+  const merged = new Map<string, DofusBookEquipmentInput['ingredients'][number]>();
+
+  for (const ingredient of ingredients) {
+    const key = normalizeSearchText(ingredient.name);
+    const existing = merged.get(key);
+
+    if (existing) {
+      existing.count += ingredient.count;
+    } else {
+      merged.set(key, { ...ingredient });
+    }
+  }
+
+  return [...merged.values()];
+}
+
+function httpsGetJson(url: string): Promise<{ statusCode: number; body: string }> {
+  return new Promise((resolve, reject) => {
+    const request = https.get(
+      url,
+      {
+        headers: dofusBookHeaders,
+        timeout: dofusBookRequestTimeoutMs,
+      },
+      (response) => {
+        response.setEncoding('utf8');
+        let body = '';
+
+        response.on('data', (chunk: string) => {
+          body += chunk;
+        });
+        response.on('end', () => {
+          resolve({ statusCode: response.statusCode ?? 0, body });
+        });
+      },
+    );
+
+    request.on('timeout', () => {
+      request.destroy(new Error('DofusBook request timeout.'));
+    });
+    request.on('error', reject);
+  });
+}
+
+function parseJsonResponse(body: string): unknown {
+  try {
+    return JSON.parse(body) as unknown;
+  } catch {
+    throw new ApiError(400, 'DOFUSBOOK_INVALID_JSON', 'Reponse DofusBook non JSON.');
+  }
+}
+
+function delay(durationMs: number) {
+  return new Promise((resolve) => setTimeout(resolve, durationMs));
 }

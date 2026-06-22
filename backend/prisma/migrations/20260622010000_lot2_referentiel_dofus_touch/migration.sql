@@ -18,6 +18,7 @@ CREATE TABLE "import_batches" (
     "status" TEXT NOT NULL,
     "raw_file_name" TEXT,
     "notes" TEXT,
+    "report_data" JSONB,
     "imported_at" DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
     "created_at" DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
     "updated_at" DATETIME NOT NULL,

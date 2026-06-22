@@ -43,4 +43,5 @@ Les 5 documents sources restent archivés pour l'historique des décisions, mais
 - **v2.0** — Fusion complète. Intègre en plus : formule de calcul de brisage (avec traitement spécifique PA/PM/PO en confiance basse), contrat d'import détaillé équipements/runes basé sur données bêta réelles, méthode de travail Codex par lots vérifiables.
 - **v2.1** — Arbitrages issus du rapport d'exécution du Lot 1 (Socle technique et authentification) : valeurs figées du user/groupe par défaut et paramètres JWT (`01`, §4.2), type `String` validée pour les champs énumération Prisma (`03`, §2), exception documentée sur le workflow de migration Prisma (`02`, §2.3).
 - **v2.2** — Arbitrages issus du rapport d'exécution du Lot 2 (Référentiel Dofus Touch) : règle générale `deleted_at` pour la suppression logique (`03`, §1.1), URL concrète de l'API DofusBook Touch figée dans le corpus (`05`, §1).
+- **v2.3** — Contrainte technique transport HTTP DofusBook documentée et figée (`05`, §7) : `node:https.get` obligatoire, `fetch`/Undici interdits (blocage Cloudflare confirmé), headers et paramètres de pagination validés en production.
 

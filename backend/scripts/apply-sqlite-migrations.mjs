@@ -75,4 +75,13 @@ for (const migrationName of readdirSync(migrationsDir).sort()) {
   }
 }
 
+const importBatchColumns = db
+  .prepare("PRAGMA table_info('import_batches')")
+  .all()
+  .map((column) => column.name);
+
+if (importBatchColumns.includes('status') && !importBatchColumns.includes('report_data')) {
+  db.exec('ALTER TABLE "import_batches" ADD COLUMN "report_data" JSONB');
+}
+
 db.close();
