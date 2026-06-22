@@ -1,0 +1,253 @@
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "sqlite"
+  url      = env("DATABASE_URL")
+}
+
+model User {
+  id           String       @id @default(cuid())
+  username     String       @unique
+  displayName  String       @map("display_name")
+  email        String       @unique
+  passwordHash String       @map("password_hash")
+  isActive     Boolean      @default(true) @map("is_active")
+  createdAt    DateTime     @default(now()) @map("created_at")
+  updatedAt    DateTime     @updatedAt @map("updated_at")
+  createdGroups Group[]     @relation("GroupCreator")
+  memberships  Membership[]
+  createdItems  Item[]      @relation("ItemCreator")
+  updatedItems  Item[]      @relation("ItemUpdater")
+  validatedItems Item[]     @relation("ItemValidator")
+  importedBatches ImportBatch[] @relation("ImportBatchImporter")
+
+  @@map("users")
+}
+
+model Group {
+  id          String       @id @default(cuid())
+  name        String
+  description String?
+  createdBy   String       @map("created_by")
+  createdAt   DateTime     @default(now()) @map("created_at")
+  updatedAt   DateTime     @updatedAt @map("updated_at")
+  creator     User         @relation("GroupCreator", fields: [createdBy], references: [id])
+  memberships Membership[]
+
+  @@map("groups")
+}
+
+model Membership {
+  id        String   @id @default(cuid())
+  userId    String   @map("user_id")
+  groupId   String   @map("group_id")
+  role      String
+  createdAt DateTime @default(now()) @map("created_at")
+  updatedAt DateTime @updatedAt @map("updated_at")
+  user      User     @relation(fields: [userId], references: [id])
+  group     Group    @relation(fields: [groupId], references: [id])
+
+  @@unique([userId, groupId])
+  @@map("memberships")
+}
+
+model DataSource {
+  id               String        @id @default(cuid())
+  name             String        @unique
+  url              String?
+  sourceType       String        @map("source_type")
+  reliabilityLevel String        @map("reliability_level")
+  createdAt        DateTime      @default(now()) @map("created_at")
+  updatedAt        DateTime      @updatedAt @map("updated_at")
+  deletedAt        DateTime?     @map("deleted_at")
+  items            Item[]
+  recipes          Recipe[]
+  itemEffects      ItemEffect[]
+  importBatches    ImportBatch[]
+
+  @@map("data_sources")
+}
+
+model ImportBatch {
+  id          String         @id @default(cuid())
+  sourceId    String         @map("source_id")
+  importedBy  String?        @map("imported_by")
+  status      String
+  rawFileName String?        @map("raw_file_name")
+  notes       String?
+  importedAt  DateTime       @default(now()) @map("imported_at")
+  createdAt   DateTime       @default(now()) @map("created_at")
+  updatedAt   DateTime       @updatedAt @map("updated_at")
+  source      DataSource     @relation(fields: [sourceId], references: [id])
+  importer    User?          @relation("ImportBatchImporter", fields: [importedBy], references: [id])
+  records     ImportRecord[]
+
+  @@map("import_batches")
+}
+
+model ImportRecord {
+  id               String      @id @default(cuid())
+  importBatchId    String      @map("import_batch_id")
+  entityType       String      @map("entity_type")
+  externalRef      String?     @map("external_ref")
+  rawDataJson      Json        @map("raw_data_json")
+  proposedDataJson Json?       @map("proposed_data_json")
+  status           String
+  reviewedBy       String?     @map("reviewed_by")
+  reviewedAt       DateTime?   @map("reviewed_at")
+  createdAt        DateTime    @default(now()) @map("created_at")
+  updatedAt        DateTime    @updatedAt @map("updated_at")
+  batch            ImportBatch @relation(fields: [importBatchId], references: [id])
+
+  @@map("import_records")
+}
+
+model ItemType {
+  id        String    @id @default(cuid())
+  name      String
+  category  String?
+  createdAt DateTime  @default(now()) @map("created_at")
+  updatedAt DateTime  @updatedAt @map("updated_at")
+  deletedAt DateTime? @map("deleted_at")
+  items     Item[]
+
+  @@unique([name, category])
+  @@map("item_types")
+}
+
+model Job {
+  id        String    @id @default(cuid())
+  name      String    @unique
+  createdAt DateTime  @default(now()) @map("created_at")
+  updatedAt DateTime  @updatedAt @map("updated_at")
+  deletedAt DateTime? @map("deleted_at")
+  items     Item[]
+  recipes   Recipe[]
+
+  @@map("jobs")
+}
+
+model Item {
+  id                 String               @id @default(cuid())
+  externalId         String?              @unique @map("external_id")
+  name               String
+  normalizedName     String               @map("normalized_name")
+  level              Int?
+  itemTypeId         String?              @map("item_type_id")
+  jobId              String?              @map("job_id")
+  isCraftable        Boolean              @default(false) @map("is_craftable")
+  isRune             Boolean              @default(false) @map("is_rune")
+  isResource         Boolean              @default(false) @map("is_resource")
+  runeTier           String?              @map("rune_tier")
+  panoplyName        String?              @map("panoply_name")
+  verificationStatus String               @map("verification_status")
+  confidenceLevel    String               @map("confidence_level")
+  sourceId           String?              @map("source_id")
+  createdBy          String?              @map("created_by")
+  updatedBy          String?              @map("updated_by")
+  validatedBy        String?              @map("validated_by")
+  validatedAt        DateTime?            @map("validated_at")
+  createdAt          DateTime             @default(now()) @map("created_at")
+  updatedAt          DateTime             @updatedAt @map("updated_at")
+  deletedAt          DateTime?            @map("deleted_at")
+  itemType           ItemType?            @relation(fields: [itemTypeId], references: [id])
+  job                Job?                 @relation(fields: [jobId], references: [id])
+  source             DataSource?          @relation(fields: [sourceId], references: [id])
+  creator            User?                @relation("ItemCreator", fields: [createdBy], references: [id])
+  updater            User?                @relation("ItemUpdater", fields: [updatedBy], references: [id])
+  validator          User?                @relation("ItemValidator", fields: [validatedBy], references: [id])
+  recipeResult       Recipe[]             @relation("RecipeResult")
+  ingredientLines    RecipeIngredient[]   @relation("IngredientItem")
+  effects            ItemEffect[]
+  runeCharacteristics RuneCharacteristic[]
+
+  @@index([normalizedName])
+  @@map("items")
+}
+
+model Recipe {
+  id                 String             @id @default(cuid())
+  resultItemId       String             @map("result_item_id")
+  jobId              String?            @map("job_id")
+  version            Int                @default(1)
+  verificationStatus String             @map("verification_status")
+  confidenceLevel    String             @map("confidence_level")
+  sourceId           String?            @map("source_id")
+  createdBy          String?            @map("created_by")
+  updatedBy          String?            @map("updated_by")
+  validatedBy        String?            @map("validated_by")
+  validatedAt        DateTime?          @map("validated_at")
+  createdAt          DateTime           @default(now()) @map("created_at")
+  updatedAt          DateTime           @updatedAt @map("updated_at")
+  deletedAt          DateTime?          @map("deleted_at")
+  resultItem         Item               @relation("RecipeResult", fields: [resultItemId], references: [id])
+  job                Job?               @relation(fields: [jobId], references: [id])
+  source             DataSource?        @relation(fields: [sourceId], references: [id])
+  ingredients        RecipeIngredient[]
+
+  @@unique([resultItemId, version])
+  @@map("recipes")
+}
+
+model RecipeIngredient {
+  id               String   @id @default(cuid())
+  recipeId         String   @map("recipe_id")
+  ingredientItemId String   @map("ingredient_item_id")
+  quantity         Int
+  createdAt        DateTime @default(now()) @map("created_at")
+  updatedAt        DateTime @updatedAt @map("updated_at")
+  recipe           Recipe   @relation(fields: [recipeId], references: [id])
+  ingredientItem   Item     @relation("IngredientItem", fields: [ingredientItemId], references: [id])
+
+  @@unique([recipeId, ingredientItemId])
+  @@map("recipe_ingredients")
+}
+
+model Characteristic {
+  id                  String               @id @default(cuid())
+  code                String               @unique
+  name                String
+  shortName           String               @unique @map("short_name")
+  createdAt           DateTime             @default(now()) @map("created_at")
+  updatedAt           DateTime             @updatedAt @map("updated_at")
+  itemEffects         ItemEffect[]
+  runeCharacteristics RuneCharacteristic[]
+
+  @@map("characteristics")
+}
+
+model ItemEffect {
+  id                 String         @id @default(cuid())
+  itemId             String         @map("item_id")
+  characteristicId   String         @map("characteristic_id")
+  minValue           Int?           @map("min_value")
+  maxValue           Int?           @map("max_value")
+  fixedValue         Int?           @map("fixed_value")
+  verificationStatus String         @map("verification_status")
+  sourceId           String?        @map("source_id")
+  createdAt          DateTime       @default(now()) @map("created_at")
+  updatedAt          DateTime       @updatedAt @map("updated_at")
+  item               Item           @relation(fields: [itemId], references: [id])
+  characteristic     Characteristic @relation(fields: [characteristicId], references: [id])
+  source             DataSource?    @relation(fields: [sourceId], references: [id])
+
+  @@map("item_effects")
+}
+
+model RuneCharacteristic {
+  id               String         @id @default(cuid())
+  runeItemId       String         @map("rune_item_id")
+  characteristicId String         @map("characteristic_id")
+  weight           Float
+  bonusValue       Float          @map("bonus_value")
+  isSpecial        Boolean        @default(false) @map("is_special")
+  createdAt        DateTime       @default(now()) @map("created_at")
+  updatedAt        DateTime       @updatedAt @map("updated_at")
+  runeItem         Item           @relation(fields: [runeItemId], references: [id])
+  characteristic   Characteristic @relation(fields: [characteristicId], references: [id])
+
+  @@unique([runeItemId, characteristicId])
+  @@map("rune_characteristics")
+}
