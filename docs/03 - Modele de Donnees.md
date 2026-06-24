@@ -226,6 +226,13 @@ price_snapshots
 - created_at
 ```
 
+**Sémantique des scopes (arbitrée au Lot 3) :**
+- `personal` : prix saisi par un utilisateur, visible uniquement par lui
+- `group` : prix partagé avec les membres du groupe de l'utilisateur
+- `global` : prix de référence communautaire, visible par tous les utilisateurs indépendamment de leur groupe — réservé à un usage futur (couche prix communautaire), mais présent dans le modèle dès la V1
+
+**Seuil de fraîcheur (arbitré au Lot 3) : 7 jours.** Un prix est considéré "stale" (`freshness.isStale = true`) si son `observed_at` est antérieur à 7 jours. Cette valeur est exposée via l'API (`freshness.ageDays`, `freshness.isStale`, `freshness.staleAfterDays`). Toute modification de ce seuil doit être actée ici avant implémentation.
+
 Note d'usage : une entrée `price_snapshots` créée par une saisie utilisateur en jeu n'est **jamais** un import au sens du §4 — c'est un flux direct, sans étape `import_batches`/`import_records` (voir `05 - Strategie Import et Sources de Donnees.md`, §5).
 
 ---
@@ -344,11 +351,14 @@ trade_lines
 - actual_unit_sell_price
 - actual_total_sell_price
 - fees
-- status
+- fee_rate          → taux de frais HDV par ligne (défaut : 0.02 = 2%, taux standard Dofus Touch HDV — arbitré au Lot 5, configurable par ligne)
+- status            → pending | sold | cancelled
 - economic_snapshot_id
 - created_at
 - updated_at
 ```
+
+**Calcul des frais :** `fees = actual_total_sell_price * fee_rate`. Marge nette = gain brut - coût d'achat - fees. Le taux par défaut de 2% (`fee_rate = 0.02`) est le taux standard HDV Dofus Touch — à ne pas coder en dur globalement, configurable par ligne pour couvrir des cas particuliers.
 
 ---
 

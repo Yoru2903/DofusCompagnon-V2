@@ -42,9 +42,9 @@ runes_moyennes = runes_entieres + probabilite_rune_supplementaire   // valeur at
 
 Où :
 - `jet_utilise` = valeur effective de la caractéristique sur l'item brisé (issue de `item_effects`, jet réel constaté ou jet moyen min/max)
-- `poids_unitaire_de_la_caracteristique` = poids de la caractéristique concernée (donnée de référence, à associer à `characteristics` ou dérivée du contexte de niveau — voir §3.3, zone d'incertitude)
-- `taux_brisage` = coefficient de brisage de l'item au moment du brisage (variable, dépend de l'économie serveur — donnée saisie ou observée, jamais présumée fixe)
-- `pwr_rune_base` = `rune_characteristics.weight` de la rune de tier `base` correspondant à la caractéristique
+- `poids_unitaire_de_la_caracteristique` = **`rune_characteristics.weight`** de la rune de tier `base` correspondant à la caractéristique (arbitré au Lot 4 — en l'absence de source officielle distinguant "poids de ligne" et "poids de rune", `weight` est utilisé pour les deux termes de la formule ; cette valeur unique est la seule disponible et son usage est cohérent avec les résultats observés)
+- `taux_brisage` = coefficient de brisage de l'item au moment du brisage (variable, dépend de l'économie serveur — donnée saisie ou observée, jamais présumée fixe). **Toujours transmis en décimal : 0.6 pour 60%, jamais 60.** Toute interface qui recueille ce taux en valeur entière (ex: champ "60") doit le convertir en décimal avant de l'envoyer au moteur.
+- `pwr_rune_base` = `rune_characteristics.weight` de la rune de tier `base` correspondant à la caractéristique (identique à `poids_unitaire_de_la_caracteristique` dans l'implémentation actuelle)
 
 Le moteur doit retourner à la fois `runes_entieres` (certain) et `probabilite_rune_supplementaire` (ex: 0.6 = 60% de chance d'obtenir une rune de plus), pour permettre à l'interface d'afficher clairement l'espérance statistique sans la présenter comme un résultat garanti — conformément au principe UX de distinction estimation/résultat réel (`01`, §7).
 
@@ -102,6 +102,8 @@ Le calcul doit conserver la référence aux `price_snapshot_id` utilisés (traç
 - ROI = bénéfice / coût × 100
 
 Toujours distinguer **prévisionnel** (basé sur prix/estimations au moment du calcul) et **réalisé** (basé sur résultats effectifs constatés) — ne jamais les confondre dans le dashboard ou les statistiques.
+
+**Règle dashboard — Craft (arbitrée au Lot 6) :** une session de craft seule est traitée comme une **dépense réalisée, gain 0** dans les KPIs du dashboard. L'item crafté a une valeur potentielle, mais aucun gain *réalisé* tant qu'il n'est pas vendu (via trade) ou brisé (via breaking). Ce choix est conforme au principe "réalisé pur" du dashboard — le gain n'apparaît qu'une fois l'opération de valorisation effective tracée. Ne jamais additionner une valeur estimée de l'item crafté comme gain dans les KPIs réalisés.
 
 ---
 

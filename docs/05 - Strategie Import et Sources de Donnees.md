@@ -48,6 +48,10 @@ ingredients[] { item_id, name, count },
 constraints[], weapon, skin
 ```
 
+**Anomalie réelle confirmée en import (Lot 2 correctif)** : `ingredients[].item_id` ne correspond pas systématiquement à un ID de ressource exploitable — il retourne fréquemment l'ID de l'équipement résultat lui-même, rendant la résolution par `item_id` non fiable. La clé de résolution et de génération des ressources déduites est donc **`ingredients[].name` normalisé** (insensible à la casse et aux accents), pas `item_id`. Le champ `item_id` source est conservé dans `raw_data_json` pour traçabilité mais ne doit pas être utilisé comme clé métier.
+
+**Anomalie alias caractéristique Intelligence (découverte au correctif V1 final)** : DofusBook importe l'effet Intelligence sous `code = "in"`, alors que le référentiel runes utilise `code = "ine"`. Une migration de données a aligné les deux. À surveiller impérativement sur tout futur import ou ajout de caractéristique — toujours vérifier que le `code` de l'effet importé correspond exactement au `code` pivot dans `characteristics`, et ne pas supposer que le code DofusBook est canonique.
+
 ## Mapping vers le modèle de données
 
 | Champ source | Destination |
@@ -57,7 +61,8 @@ constraints[], weapon, skin
 | `cloth_id` / `cloth_name` | `items.panoply_name` |
 | `effects[]` où `type = "E"` | `item_effects` (`characteristic_id` résolu via `effects[].name` = `characteristics.short_name`, `min_value`, `max_value`) |
 | `effects[]` où `type = "O"` | **Ignoré en V1** — voir `03 - Modele de Donnees.md`, §13 |
-| `ingredients[]` | `recipes` + `recipe_ingredients` (déclenche la génération dérivée des ressources, §2) |
+| `ingredients[].name` (normalisé) | Clé de résolution/création des ressources déduites — voir §2 |
+| `ingredients[].count` | `recipe_ingredients.quantity` |
 | `weapon`, `skin`, `constraints` | **Non exploités en V1**, à ignorer |
 
 Le service d'import doit conserver le JSON brut dans `import_records.raw_data_json` avant toute transformation, conformément au workflow obligatoire : **Import brut → Analyse → Validation → Publication**. Une donnée importée ne devient jamais automatiquement une donnée validée.

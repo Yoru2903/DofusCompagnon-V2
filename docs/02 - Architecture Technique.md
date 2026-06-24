@@ -44,6 +44,8 @@ L'application est utilisée pendant les sessions de jeu. Le mobile est la platef
 - React Router
 - TanStack Query
 
+**Note (arbitrée au Lot 6) :** le graphique d'évolution temporelle du Dashboard est implémenté en CSS pur (pas de librairie recharts ou équivalent). Ce choix a été retenu faute d'accès réseau lors du développement et s'avère suffisant pour le besoin V1. Ne pas remplacer par une librairie externe sans raison fonctionnelle avérée — la dépendance supplémentaire ne se justifie que si des besoins graphiques plus avancés apparaissent (graphiques interactifs complexes, multi-séries, export, etc.).
+
 ## 2.3 Base de données
 
 SQLite pour les premières versions. Fichier unique, sauvegarde simple, faible administration, portable, compatible Prisma.
