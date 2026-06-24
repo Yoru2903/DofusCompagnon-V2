@@ -8,33 +8,48 @@ datasource db {
 }
 
 model User {
-  id           String       @id @default(cuid())
-  username     String       @unique
-  displayName  String       @map("display_name")
-  email        String       @unique
-  passwordHash String       @map("password_hash")
-  isActive     Boolean      @default(true) @map("is_active")
-  createdAt    DateTime     @default(now()) @map("created_at")
-  updatedAt    DateTime     @updatedAt @map("updated_at")
-  createdGroups Group[]     @relation("GroupCreator")
-  memberships  Membership[]
-  createdItems  Item[]      @relation("ItemCreator")
-  updatedItems  Item[]      @relation("ItemUpdater")
-  validatedItems Item[]     @relation("ItemValidator")
-  importedBatches ImportBatch[] @relation("ImportBatchImporter")
+  id                String             @id @default(cuid())
+  username          String             @unique
+  displayName       String             @map("display_name")
+  email             String             @unique
+  passwordHash      String             @map("password_hash")
+  isActive          Boolean            @default(true) @map("is_active")
+  createdAt         DateTime           @default(now()) @map("created_at")
+  updatedAt         DateTime           @updatedAt @map("updated_at")
+  createdGroups     Group[]            @relation("GroupCreator")
+  memberships       Membership[]
+  createdItems      Item[]             @relation("ItemCreator")
+  updatedItems      Item[]             @relation("ItemUpdater")
+  validatedItems    Item[]             @relation("ItemValidator")
+  importedBatches   ImportBatch[]      @relation("ImportBatchImporter")
+  priceSnapshots    PriceSnapshot[]
+  economicSnapshots EconomicSnapshot[]
+  craftSessions     CraftSession[]
+  breakingSessions  BreakingSession[]
+  tradeSessions     TradeSession[]
+  stockLocations    StockLocation[]
+  stockMovements    StockMovement[]
+  simulations        Simulation[]
 
   @@map("users")
 }
 
 model Group {
-  id          String       @id @default(cuid())
-  name        String
-  description String?
-  createdBy   String       @map("created_by")
-  createdAt   DateTime     @default(now()) @map("created_at")
-  updatedAt   DateTime     @updatedAt @map("updated_at")
-  creator     User         @relation("GroupCreator", fields: [createdBy], references: [id])
-  memberships Membership[]
+  id                String             @id @default(cuid())
+  name              String
+  description       String?
+  createdBy         String             @map("created_by")
+  createdAt         DateTime           @default(now()) @map("created_at")
+  updatedAt         DateTime           @updatedAt @map("updated_at")
+  creator           User               @relation("GroupCreator", fields: [createdBy], references: [id])
+  memberships       Membership[]
+  priceSnapshots    PriceSnapshot[]
+  economicSnapshots EconomicSnapshot[]
+  craftSessions     CraftSession[]
+  breakingSessions  BreakingSession[]
+  tradeSessions     TradeSession[]
+  stockLocations    StockLocation[]
+  simulations        Simulation[]
 
   @@map("groups")
 }
@@ -54,18 +69,19 @@ model Membership {
 }
 
 model DataSource {
-  id               String        @id @default(cuid())
-  name             String        @unique
+  id               String          @id @default(cuid())
+  name             String          @unique
   url              String?
-  sourceType       String        @map("source_type")
-  reliabilityLevel String        @map("reliability_level")
-  createdAt        DateTime      @default(now()) @map("created_at")
-  updatedAt        DateTime      @updatedAt @map("updated_at")
-  deletedAt        DateTime?     @map("deleted_at")
+  sourceType       String          @map("source_type")
+  reliabilityLevel String          @map("reliability_level")
+  createdAt        DateTime        @default(now()) @map("created_at")
+  updatedAt        DateTime        @updatedAt @map("updated_at")
+  deletedAt        DateTime?       @map("deleted_at")
   items            Item[]
   recipes          Recipe[]
   itemEffects      ItemEffect[]
   importBatches    ImportBatch[]
+  priceSnapshots   PriceSnapshot[]
 
   @@map("data_sources")
 }
@@ -131,38 +147,46 @@ model Job {
 }
 
 model Item {
-  id                 String               @id @default(cuid())
-  externalId         String?              @unique @map("external_id")
-  name               String
-  normalizedName     String               @map("normalized_name")
-  level              Int?
-  itemTypeId         String?              @map("item_type_id")
-  jobId              String?              @map("job_id")
-  isCraftable        Boolean              @default(false) @map("is_craftable")
-  isRune             Boolean              @default(false) @map("is_rune")
-  isResource         Boolean              @default(false) @map("is_resource")
-  runeTier           String?              @map("rune_tier")
-  panoplyName        String?              @map("panoply_name")
-  verificationStatus String               @map("verification_status")
-  confidenceLevel    String               @map("confidence_level")
-  sourceId           String?              @map("source_id")
-  createdBy          String?              @map("created_by")
-  updatedBy          String?              @map("updated_by")
-  validatedBy        String?              @map("validated_by")
-  validatedAt        DateTime?            @map("validated_at")
-  createdAt          DateTime             @default(now()) @map("created_at")
-  updatedAt          DateTime             @updatedAt @map("updated_at")
-  deletedAt          DateTime?            @map("deleted_at")
-  itemType           ItemType?            @relation(fields: [itemTypeId], references: [id])
-  job                Job?                 @relation(fields: [jobId], references: [id])
-  source             DataSource?          @relation(fields: [sourceId], references: [id])
-  creator            User?                @relation("ItemCreator", fields: [createdBy], references: [id])
-  updater            User?                @relation("ItemUpdater", fields: [updatedBy], references: [id])
-  validator          User?                @relation("ItemValidator", fields: [validatedBy], references: [id])
-  recipeResult       Recipe[]             @relation("RecipeResult")
-  ingredientLines    RecipeIngredient[]   @relation("IngredientItem")
-  effects            ItemEffect[]
+  id                  String                   @id @default(cuid())
+  externalId          String?                  @unique @map("external_id")
+  name                String
+  normalizedName      String                   @map("normalized_name")
+  level               Int?
+  itemTypeId          String?                  @map("item_type_id")
+  jobId               String?                  @map("job_id")
+  isCraftable         Boolean                  @default(false) @map("is_craftable")
+  isRune              Boolean                  @default(false) @map("is_rune")
+  isResource          Boolean                  @default(false) @map("is_resource")
+  runeTier            String?                  @map("rune_tier")
+  panoplyName         String?                  @map("panoply_name")
+  verificationStatus  String                   @map("verification_status")
+  confidenceLevel     String                   @map("confidence_level")
+  sourceId            String?                  @map("source_id")
+  createdBy           String?                  @map("created_by")
+  updatedBy           String?                  @map("updated_by")
+  validatedBy         String?                  @map("validated_by")
+  validatedAt         DateTime?                @map("validated_at")
+  createdAt           DateTime                 @default(now()) @map("created_at")
+  updatedAt           DateTime                 @updatedAt @map("updated_at")
+  deletedAt           DateTime?                @map("deleted_at")
+  itemType            ItemType?                @relation(fields: [itemTypeId], references: [id])
+  job                 Job?                     @relation(fields: [jobId], references: [id])
+  source              DataSource?              @relation(fields: [sourceId], references: [id])
+  creator             User?                    @relation("ItemCreator", fields: [createdBy], references: [id])
+  updater             User?                    @relation("ItemUpdater", fields: [updatedBy], references: [id])
+  validator           User?                    @relation("ItemValidator", fields: [validatedBy], references: [id])
+  recipeResult        Recipe[]                 @relation("RecipeResult")
+  ingredientLines     RecipeIngredient[]       @relation("IngredientItem")
+  effects             ItemEffect[]
   runeCharacteristics RuneCharacteristic[]
+  priceSnapshots      PriceSnapshot[]
+  craftLines          CraftSessionLine[]       @relation("CraftLineItem")
+  craftIngredients    CraftSessionIngredient[] @relation("CraftIngredientItem")
+  breakingLines       BreakingSessionLine[]    @relation("BreakingLineItem")
+  breakingResults     BreakingResult[]         @relation("BreakingResultRune")
+  tradeLines          TradeLine[]
+  stockMovements      StockMovement[]
+  simulations          Simulation[]
 
   @@index([normalizedName])
   @@map("items")
@@ -187,6 +211,7 @@ model Recipe {
   job                Job?               @relation(fields: [jobId], references: [id])
   source             DataSource?        @relation(fields: [sourceId], references: [id])
   ingredients        RecipeIngredient[]
+  craftLines         CraftSessionLine[]
 
   @@unique([resultItemId, version])
   @@map("recipes")
@@ -251,4 +276,272 @@ model RuneCharacteristic {
 
   @@unique([runeItemId, characteristicId])
   @@map("rune_characteristics")
+}
+
+model PriceSnapshot {
+  id               String                   @id @default(cuid())
+  itemId           String                   @map("item_id")
+  unitPrice        Float                    @map("unit_price")
+  lotSize          Int                      @map("lot_size")
+  totalPrice       Float                    @map("total_price")
+  priceType        String                   @map("price_type")
+  scope            String
+  userId           String?                  @map("user_id")
+  groupId          String?                  @map("group_id")
+  sourceId         String?                  @map("source_id")
+  observedAt       DateTime                 @map("observed_at")
+  createdAt        DateTime                 @default(now()) @map("created_at")
+  item             Item                     @relation(fields: [itemId], references: [id])
+  user             User?                    @relation(fields: [userId], references: [id])
+  group            Group?                   @relation(fields: [groupId], references: [id])
+  source           DataSource?              @relation(fields: [sourceId], references: [id])
+  craftIngredients CraftSessionIngredient[]
+  breakingResults  BreakingResult[]
+
+  @@index([itemId, observedAt])
+  @@index([priceType, scope])
+  @@map("price_snapshots")
+}
+
+model EconomicSnapshot {
+  id            String                @id @default(cuid())
+  userId        String?               @map("user_id")
+  groupId       String?               @map("group_id")
+  snapshotType  String                @map("snapshot_type")
+  dataJson      Json                  @map("data_json")
+  createdAt     DateTime              @default(now()) @map("created_at")
+  user          User?                 @relation(fields: [userId], references: [id])
+  group         Group?                @relation(fields: [groupId], references: [id])
+  craftLines    CraftSessionLine[]
+  breakingLines BreakingSessionLine[]
+  tradeLines    TradeLine[]
+  simulations    Simulation[]
+
+  @@index([snapshotType, createdAt])
+  @@map("economic_snapshots")
+}
+
+model CraftSession {
+  id          String             @id @default(cuid())
+  userId      String             @map("user_id")
+  groupId     String             @map("group_id")
+  name        String
+  sessionDate DateTime           @map("session_date")
+  notes       String?
+  createdAt   DateTime           @default(now()) @map("created_at")
+  updatedAt   DateTime           @updatedAt @map("updated_at")
+  deletedAt   DateTime?          @map("deleted_at")
+  user        User               @relation(fields: [userId], references: [id])
+  group       Group              @relation(fields: [groupId], references: [id])
+  lines       CraftSessionLine[]
+
+  @@index([sessionDate])
+  @@index([userId, groupId])
+  @@map("craft_sessions")
+}
+
+model CraftSessionLine {
+  id                 String                   @id @default(cuid())
+  craftSessionId     String                   @map("craft_session_id")
+  itemId             String                   @map("item_id")
+  recipeId           String                   @map("recipe_id")
+  quantity           Int
+  unitCost           Float                    @map("unit_cost")
+  totalCost          Float                    @map("total_cost")
+  costSource         String                   @map("cost_source")
+  status             String                   @default("active")
+  economicSnapshotId String?                  @map("economic_snapshot_id")
+  createdAt          DateTime                 @default(now()) @map("created_at")
+  updatedAt          DateTime                 @updatedAt @map("updated_at")
+  session            CraftSession             @relation(fields: [craftSessionId], references: [id])
+  item               Item                     @relation("CraftLineItem", fields: [itemId], references: [id])
+  recipe             Recipe                   @relation(fields: [recipeId], references: [id])
+  economicSnapshot   EconomicSnapshot?        @relation(fields: [economicSnapshotId], references: [id])
+  ingredients        CraftSessionIngredient[]
+  breakingLines      BreakingSessionLine[]
+
+  @@index([craftSessionId])
+  @@index([itemId])
+  @@map("craft_session_lines")
+}
+
+model CraftSessionIngredient {
+  id                 String           @id @default(cuid())
+  craftSessionLineId String           @map("craft_session_line_id")
+  ingredientItemId   String           @map("ingredient_item_id")
+  quantity           Int
+  unitPrice          Float            @map("unit_price")
+  totalPrice         Float            @map("total_price")
+  priceSnapshotId    String?          @map("price_snapshot_id")
+  createdAt          DateTime         @default(now()) @map("created_at")
+  line               CraftSessionLine @relation(fields: [craftSessionLineId], references: [id])
+  ingredientItem     Item             @relation("CraftIngredientItem", fields: [ingredientItemId], references: [id])
+  priceSnapshot      PriceSnapshot?   @relation(fields: [priceSnapshotId], references: [id])
+
+  @@index([craftSessionLineId])
+  @@map("craft_session_ingredients")
+}
+
+model BreakingSession {
+  id          String                @id @default(cuid())
+  userId      String                @map("user_id")
+  groupId     String                @map("group_id")
+  name        String
+  sessionDate DateTime              @map("session_date")
+  notes       String?
+  createdAt   DateTime              @default(now()) @map("created_at")
+  updatedAt   DateTime              @updatedAt @map("updated_at")
+  deletedAt   DateTime?             @map("deleted_at")
+  user        User                  @relation(fields: [userId], references: [id])
+  group       Group                 @relation(fields: [groupId], references: [id])
+  lines       BreakingSessionLine[]
+
+  @@index([sessionDate])
+  @@index([userId, groupId])
+  @@map("breaking_sessions")
+}
+
+model BreakingSessionLine {
+  id                 String            @id @default(cuid())
+  breakingSessionId  String            @map("breaking_session_id")
+  itemId             String            @map("item_id")
+  quantity           Int
+  unitCost           Float             @map("unit_cost")
+  totalCost          Float             @map("total_cost")
+  sourceCraftLineId  String?           @map("source_craft_line_id")
+  economicSnapshotId String?           @map("economic_snapshot_id")
+  createdAt          DateTime          @default(now()) @map("created_at")
+  updatedAt          DateTime          @updatedAt @map("updated_at")
+  session            BreakingSession   @relation(fields: [breakingSessionId], references: [id])
+  item               Item              @relation("BreakingLineItem", fields: [itemId], references: [id])
+  sourceCraftLine    CraftSessionLine? @relation(fields: [sourceCraftLineId], references: [id])
+  economicSnapshot   EconomicSnapshot? @relation(fields: [economicSnapshotId], references: [id])
+  results            BreakingResult[]
+
+  @@index([breakingSessionId])
+  @@index([itemId])
+  @@map("breaking_session_lines")
+}
+
+model BreakingResult {
+  id                    String              @id @default(cuid())
+  breakingSessionLineId String              @map("breaking_session_line_id")
+  runeItemId            String              @map("rune_item_id")
+  quantity              Float
+  unitPrice             Float               @map("unit_price")
+  totalValue            Float               @map("total_value")
+  priceSnapshotId       String?             @map("price_snapshot_id")
+  createdAt             DateTime            @default(now()) @map("created_at")
+  line                  BreakingSessionLine @relation(fields: [breakingSessionLineId], references: [id])
+  runeItem              Item                @relation("BreakingResultRune", fields: [runeItemId], references: [id])
+  priceSnapshot         PriceSnapshot?      @relation(fields: [priceSnapshotId], references: [id])
+
+  @@index([breakingSessionLineId])
+  @@map("breaking_results")
+}
+
+model TradeSession {
+  id          String      @id @default(cuid())
+  userId      String      @map("user_id")
+  groupId     String      @map("group_id")
+  name        String
+  sessionDate DateTime    @map("session_date")
+  notes       String?
+  createdAt   DateTime    @default(now()) @map("created_at")
+  updatedAt   DateTime    @updatedAt @map("updated_at")
+  deletedAt   DateTime?   @map("deleted_at")
+  user        User        @relation(fields: [userId], references: [id])
+  group       Group       @relation(fields: [groupId], references: [id])
+  lines       TradeLine[]
+
+  @@index([sessionDate])
+  @@index([userId, groupId])
+  @@map("trade_sessions")
+}
+
+model TradeLine {
+  id                     String            @id @default(cuid())
+  tradeSessionId         String            @map("trade_session_id")
+  itemId                 String            @map("item_id")
+  quantity               Int
+  unitBuyPrice           Float             @map("unit_buy_price")
+  totalBuyPrice          Float             @map("total_buy_price")
+  expectedUnitSellPrice  Float             @map("expected_unit_sell_price")
+  expectedTotalSellPrice Float             @map("expected_total_sell_price")
+  actualUnitSellPrice    Float?            @map("actual_unit_sell_price")
+  actualTotalSellPrice   Float?            @map("actual_total_sell_price")
+  feeRate                Float             @default(0.02) @map("fee_rate")
+  fees                   Float
+  status                 String
+  economicSnapshotId     String?           @map("economic_snapshot_id")
+  createdAt              DateTime          @default(now()) @map("created_at")
+  updatedAt              DateTime          @updatedAt @map("updated_at")
+  session                TradeSession      @relation(fields: [tradeSessionId], references: [id])
+  item                   Item              @relation(fields: [itemId], references: [id])
+  economicSnapshot       EconomicSnapshot? @relation(fields: [economicSnapshotId], references: [id])
+
+  @@index([tradeSessionId])
+  @@index([itemId])
+  @@index([status])
+  @@map("trade_lines")
+}
+
+model StockLocation {
+  id        String          @id @default(cuid())
+  name      String
+  scope     String
+  userId    String?         @map("user_id")
+  groupId   String?         @map("group_id")
+  createdAt DateTime        @default(now()) @map("created_at")
+  updatedAt DateTime        @updatedAt @map("updated_at")
+  deletedAt DateTime?       @map("deleted_at")
+  user      User?           @relation(fields: [userId], references: [id])
+  group     Group?          @relation(fields: [groupId], references: [id])
+  movements StockMovement[]
+
+  @@index([scope])
+  @@map("stock_locations")
+}
+
+model StockMovement {
+  id                String        @id @default(cuid())
+  stockLocationId   String        @map("stock_location_id")
+  itemId            String        @map("item_id")
+  movementType      String        @map("movement_type")
+  quantity          Int
+  unitValue         Float         @map("unit_value")
+  totalValue        Float         @map("total_value")
+  relatedEntityType String?       @map("related_entity_type")
+  relatedEntityId   String?       @map("related_entity_id")
+  notes             String?
+  createdBy         String?       @map("created_by")
+  createdAt         DateTime      @default(now()) @map("created_at")
+  stockLocation     StockLocation @relation(fields: [stockLocationId], references: [id])
+  item              Item          @relation(fields: [itemId], references: [id])
+  creator           User?         @relation(fields: [createdBy], references: [id])
+
+  @@index([stockLocationId])
+  @@index([itemId])
+  @@index([relatedEntityType, relatedEntityId])
+  @@map("stock_movements")
+}
+
+model Simulation {
+  id                 String            @id @default(cuid())
+  userId             String            @map("user_id")
+  groupId            String            @map("group_id")
+  simulationType     String            @map("simulation_type")
+  itemId             String            @map("item_id")
+  quantity           Int
+  resultJson         Json              @map("result_json")
+  economicSnapshotId String?           @map("economic_snapshot_id")
+  createdAt          DateTime          @default(now()) @map("created_at")
+  user               User              @relation(fields: [userId], references: [id])
+  group              Group             @relation(fields: [groupId], references: [id])
+  item               Item              @relation(fields: [itemId], references: [id])
+  economicSnapshot   EconomicSnapshot? @relation(fields: [economicSnapshotId], references: [id])
+
+  @@index([simulationType, createdAt])
+  @@index([userId, groupId])
+  @@map("simulations")
 }

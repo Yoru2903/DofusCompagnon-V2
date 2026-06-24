@@ -28,6 +28,12 @@ export async function registerDofusDataRoutes(app: FastifyInstance, service: Dof
   );
   app.delete('/api/jobs/:id', async (request) => service.deleteJob((request.params as { id: string }).id));
 
+  app.get('/api/items/autocomplete', async (request) => {
+    const query = (request.query as { q?: string; limit?: string }).q ?? '';
+    const limit = Number((request.query as { limit?: string }).limit ?? 20);
+    return service.autocompleteItems(query, Number.isFinite(limit) ? limit : 20);
+  });
+
   app.get('/api/items', async (request) => {
     const query = (request.query as { q?: string }).q;
     return query ? service.searchItems(query) : service.listItems();

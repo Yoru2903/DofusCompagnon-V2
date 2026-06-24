@@ -59,6 +59,16 @@ export class DofusDataRepository {
         },
         orderBy: { name: 'asc' },
       }),
+    autocomplete: (normalizedQuery: string, limit: number) =>
+      this.db.item.findMany({
+        where: {
+          deletedAt: null,
+          normalizedName: { contains: normalizedQuery },
+        },
+        include: { itemType: true },
+        orderBy: [{ name: 'asc' }],
+        take: Math.min(limit, 20),
+      }),
     create: (data: Prisma.ItemCreateInput) => this.db.item.create({ data }),
     update: (id: string, data: Prisma.ItemUpdateInput) => this.db.item.update({ where: { id }, data }),
     softDelete: (id: string) =>

@@ -6,6 +6,19 @@ import { CoreService } from '../modules/core/core.service.js';
 const service = new CoreService(new CoreRepository(prisma), 'test-secret');
 
 beforeEach(async () => {
+  await prisma.simulation.deleteMany();
+  await prisma.stockMovement.deleteMany();
+  await prisma.stockLocation.deleteMany();
+  await prisma.tradeLine.deleteMany();
+  await prisma.tradeSession.deleteMany();
+  await prisma.breakingResult.deleteMany();
+  await prisma.breakingSessionLine.deleteMany();
+  await prisma.breakingSession.deleteMany();
+  await prisma.craftSessionIngredient.deleteMany();
+  await prisma.craftSessionLine.deleteMany();
+  await prisma.craftSession.deleteMany();
+  await prisma.economicSnapshot.deleteMany();
+  await prisma.priceSnapshot.deleteMany();
   await prisma.membership.deleteMany();
   await prisma.group.deleteMany();
   await prisma.user.deleteMany();

@@ -40,6 +40,9 @@ const dofusBookHeaders = {
 const dofusBookRequestTimeoutMs = 20_000;
 const dofusBookPageDelayMs = 500;
 const dofusBookMaxPages = 500;
+const characteristicAliases = new Map([
+  ['in', { code: 'ine', name: 'Intelligence' }],
+]);
 
 type SourceProfile = {
   verificationStatus: VerificationStatus;
@@ -119,6 +122,21 @@ export class DofusDataService {
 
   searchItems(query: string) {
     return this.repository.item.search(normalizeSearchText(query));
+  }
+
+  autocompleteItems(query: string, limit = 20) {
+    return this.repository.item.autocomplete(normalizeSearchText(query), limit).then((items) =>
+      items.map((item) => ({
+        id: item.id,
+        name: item.name,
+        level: item.level,
+        itemType: item.itemType ? { id: item.itemType.id, name: item.itemType.name } : null,
+        verificationStatus: item.verificationStatus,
+        isRune: item.isRune,
+        isResource: item.isResource,
+        isCraftable: item.isCraftable,
+      })),
+    );
   }
 
   async createItem(rawInput: ItemInput) {
@@ -618,12 +636,16 @@ export class DofusDataService {
 
   private async ensureCharacteristicFromEffect(tx: Prisma.TransactionClient, shortName: string) {
     const normalized = shortName.trim();
+    const alias = characteristicAliases.get(normalized.toLowerCase());
+    const code = alias?.code ?? normalized;
+    const name = alias?.name ?? normalized;
+
     return tx.characteristic.upsert({
-      where: { shortName: normalized },
+      where: { shortName: code },
       create: {
-        code: normalized,
-        name: normalized,
-        shortName: normalized,
+        code,
+        name,
+        shortName: code,
       },
       update: {},
     });

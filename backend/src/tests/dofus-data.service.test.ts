@@ -9,6 +9,19 @@ import { DofusDataService } from '../modules/dofus-data/dofus-data.service.js';
 const service = new DofusDataService(new DofusDataRepository(prisma), prisma);
 
 beforeEach(async () => {
+  await prisma.simulation.deleteMany();
+  await prisma.stockMovement.deleteMany();
+  await prisma.stockLocation.deleteMany();
+  await prisma.tradeLine.deleteMany();
+  await prisma.tradeSession.deleteMany();
+  await prisma.breakingResult.deleteMany();
+  await prisma.breakingSessionLine.deleteMany();
+  await prisma.breakingSession.deleteMany();
+  await prisma.craftSessionIngredient.deleteMany();
+  await prisma.craftSessionLine.deleteMany();
+  await prisma.craftSession.deleteMany();
+  await prisma.economicSnapshot.deleteMany();
+  await prisma.priceSnapshot.deleteMany();
   await prisma.runeCharacteristic.deleteMany();
   await prisma.itemEffect.deleteMany();
   await prisma.recipeIngredient.deleteMany();
@@ -208,45 +221,45 @@ describe('DofusDataService', () => {
       {
         statusCode: 200,
         body: JSON.stringify({
-            data: [
-              {
-                id: 2001,
-                level: 1,
-                category_id: 1,
-                category_name: 'Coiffe',
-                category_type: 'equipment',
-                name: 'Coiffe page 1',
-                effects: [],
-                ingredients: [],
-              },
-              {
-                id: 2002,
-                level: 2,
-                category_id: 1,
-                category_name: 'Coiffe',
-                category_type: 'equipment',
-                name: 'Coiffe page 1 bis',
-                effects: [],
-                ingredients: [],
-              },
-            ],
+          data: [
+            {
+              id: 2001,
+              level: 1,
+              category_id: 1,
+              category_name: 'Coiffe',
+              category_type: 'equipment',
+              name: 'Coiffe page 1',
+              effects: [],
+              ingredients: [],
+            },
+            {
+              id: 2002,
+              level: 2,
+              category_id: 1,
+              category_name: 'Coiffe',
+              category_type: 'equipment',
+              name: 'Coiffe page 1 bis',
+              effects: [],
+              ingredients: [],
+            },
+          ],
         }),
       },
       {
         statusCode: 200,
         body: JSON.stringify({
-            data: [
-              {
-                id: 2003,
-                level: 3,
-                category_id: 1,
-                category_name: 'Coiffe',
-                category_type: 'equipment',
-                name: 'Coiffe page 2',
-                effects: [],
-                ingredients: [],
-              },
-            ],
+          data: [
+            {
+              id: 2003,
+              level: 3,
+              category_id: 1,
+              category_name: 'Coiffe',
+              category_type: 'equipment',
+              name: 'Coiffe page 2',
+              effects: [],
+              ingredients: [],
+            },
+          ],
         }),
       },
     ]);
